@@ -201,6 +201,21 @@ class Twitter_Card {
 		$this->image = $image;
 		return $this;
 	}
+	
+	public function setGalleryImages($images = array()) {
+		if (!is_array($images) || count($images) != 4) {
+			return $this;
+		}
+		$gallery_images = array();
+		foreach ($images as $image) {
+			if (!is_string($image)) {
+				return $this;
+			}
+			$gallery_images[] = $image;
+		}
+		$this->gallery_images = $gallery_images;
+		return $this;
+	}
 
 	/**
 	 * HTTPS URL of an HTML suitable for display in an iframe
@@ -302,11 +317,14 @@ class Twitter_Card {
 	 * @return bool true if all required properties exist for the specified type, else false
 	 */
 	private function required_properties_exist() {
-		if ( ! ( isset( $this->url ) && isset( $this->title ) ) )
+		if ( ! isset( $this->url ) )
+			return false;
+			
+		if ( ! isset( $this->title ) && ! in_array( $this->card, array( 'photo', 'gallery' ) ) )
 			return false;
 
 		// description required for summary & video but not photo
-		if ( ! isset( $this->description ) && $this->card !== 'photo' )
+		if ( ! isset( $this->description ) && ! in_array( $this->card, array( 'photo', 'gallery' ) ) )
 			return false;
 
 		// image optional for summary
@@ -316,6 +334,11 @@ class Twitter_Card {
 		// video player needs a video
 		if ( $this->card === 'player' && ! ( isset( $this->video ) && isset( $this->video->url ) && isset( $this->video->width ) && isset( $this->video->height ) ) )
 			return false;
+			
+		// gallery needs four images
+		if ( $this->card === 'gallery' && ! ( isset( $this->gallery_images ) && count( $this->gallery_images ) === 4 ) )
+			return false;
+			
 		return true;
 	}
 
@@ -338,12 +361,19 @@ class Twitter_Card {
 		if ( isset( $this->description ) )
 			$t['description'] = $this->description;
 
-		// add an image
-		if ( isset( $this->image ) && isset( $this->image->url ) ) {
+		// add an image if not a gallery. Galleries have seperate images
+		if ( ! in_array( $this->card, array( 'gallery' ) ) && isset( $this->image ) && isset( $this->image->url ) ) {
 			$t['image'] = $this->image->url;
 			if ( isset( $this->image->width ) && isset( $this->image->height ) ) {
 				$t['image:width'] = $this->image->width;
 				$t['image:height'] = $this->image->height;
+			}
+		}
+		
+		// Add gallery images if it's a gallery card
+		if ( $this->card == 'gallery' && isset( $this->gallery_images ) ) {
+			foreach ( $this->gallery_images as $i => $image ) {
+				$t['image'.print_r($i, true)] = $image;
 			}
 		}
 
